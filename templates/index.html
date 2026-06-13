@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Handwritten Digit Recognizer | CNN AI</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     NAVBAR
+══════════════════════════════════════════════════════════════ -->
+<nav class="navbar navbar-expand-lg fixed-top glass-nav" id="mainNav">
+  <div class="container">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+      <div class="brand-icon">
+        <i class="bi bi-cpu-fill"></i>
+      </div>
+      <span class="brand-text">Digit<span class="accent">AI</span></span>
+    </a>
+
+    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+      <i class="bi bi-list text-white fs-4"></i>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navMenu">
+      <ul class="navbar-nav ms-auto align-items-center gap-1">
+        <li class="nav-item"><a class="nav-link nav-pill active" href="#hero">Home</a></li>
+        <li class="nav-item"><a class="nav-link nav-pill" href="#predictor">Predict</a></li>
+        <li class="nav-item"><a class="nav-link nav-pill" href="#performance">Dashboard</a></li>
+        <li class="nav-item"><a class="nav-link nav-pill" href="#model-info">Model</a></li>
+        <li class="nav-item"><a class="nav-link nav-pill" href="/about">About</a></li>
+        <li class="nav-item ms-2">
+          <button class="theme-toggle btn" id="themeToggle" title="Toggle theme">
+            <i class="bi bi-moon-stars-fill"></i>
+          </button>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     HERO
+══════════════════════════════════════════════════════════════ -->
+<section id="hero" class="hero-section">
+  <!-- animated mesh background -->
+  <div class="hero-bg">
+    <canvas id="neuralCanvas"></canvas>
+    <div class="glow-blob glow-1"></div>
+    <div class="glow-blob glow-2"></div>
+    <div class="glow-blob glow-3"></div>
+  </div>
+
+  <div class="container hero-content">
+    <div class="row align-items-center min-vh-100 py-5">
+      <div class="col-lg-7" data-aos="fade-right">
+        <div class="hero-badge mb-3">
+          <i class="bi bi-stars me-2"></i> AI-Powered Recognition
+        </div>
+        <h1 class="hero-title">
+          Handwritten<br>
+          <span class="gradient-text">Digit Recognizer</span><br>
+          <span class="sub-title">using CNN</span>
+        </h1>
+        <p class="hero-desc mt-4">
+          Draw or upload a digit and watch a <strong>Convolutional Neural Network</strong>
+          trained on 70,000 MNIST images identify it in milliseconds —
+          with Grad-CAM explainability, confidence charts, and PDF reports.
+        </p>
+        <div class="hero-stats d-flex flex-wrap gap-4 mt-4 mb-5">
+          <div class="hstat">
+            <span class="hstat-num gradient-text">{{ stats.get('test_accuracy', '99.3') }}%</span>
+            <span class="hstat-lbl">Test Accuracy</span>
+          </div>
+          <div class="hstat">
+            <span class="hstat-num gradient-text">70K</span>
+            <span class="hstat-lbl">Training Images</span>
+          </div>
+          <div class="hstat">
+            <span class="hstat-num gradient-text">10</span>
+            <span class="hstat-lbl">Digit Classes</span>
+          </div>
+        </div>
+        <div class="d-flex flex-wrap gap-3">
+          <a href="#predictor" class="btn btn-primary-glow">
+            <i class="bi bi-pencil-fill me-2"></i>Try it Now
+          </a>
+          <a href="/about" class="btn btn-outline-glow">
+            <i class="bi bi-info-circle me-2"></i>Learn More
+          </a>
+        </div>
+      </div>
+
+      <div class="col-lg-5 d-flex justify-content-center mt-5 mt-lg-0" data-aos="fade-left">
+        <div class="hero-digit-display">
+          <div class="digit-showcase" id="digitShowcase">
+            <span class="showcase-digit" id="showcaseNum">7</span>
+          </div>
+          <div class="showcase-ring ring-1"></div>
+          <div class="showcase-ring ring-2"></div>
+          <div class="showcase-ring ring-3"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- scroll indicator -->
+  <div class="scroll-indicator">
+    <div class="scroll-dot"></div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     PREDICTOR  (Draw + Upload tabs)
+══════════════════════════════════════════════════════════════ -->
+<section id="predictor" class="section-pad">
+  <div class="container">
+    <div class="section-header text-center mb-5">
+      <span class="section-tag">Try It</span>
+      <h2 class="section-title">Predict a Digit</h2>
+      <p class="section-sub">Draw with your mouse or upload an image — results appear instantly.</p>
+    </div>
+
+    <!-- Tab nav -->
+    <div class="d-flex justify-content-center mb-4">
+      <div class="custom-tab-nav" role="tablist">
+        <button class="ctab active" data-bs-toggle="tab" data-bs-target="#drawTab" type="button" role="tab">
+          <i class="bi bi-pencil me-2"></i>Draw Digit
+        </button>
+        <button class="ctab" data-bs-toggle="tab" data-bs-target="#uploadTab" type="button" role="tab">
+          <i class="bi bi-cloud-upload me-2"></i>Upload Image
+        </button>
+      </div>
+    </div>
+
+    <div class="tab-content">
+
+      <!-- ── Draw Tab ─────────────────────────────────────── -->
+      <div class="tab-pane fade show active" id="drawTab" role="tabpanel">
+        <div class="row g-4 justify-content-center">
+
+          <div class="col-lg-5">
+            <div class="glass-card canvas-card">
+              <h5 class="card-label">
+                <i class="bi bi-pencil-square me-2 accent"></i>Drawing Canvas
+              </h5>
+              <div class="canvas-wrapper">
+                <canvas id="drawCanvas" width="280" height="280"></canvas>
+              </div>
+
+              <!-- Brush controls -->
+              <div class="brush-controls d-flex align-items-center gap-3 mt-3 flex-wrap">
+                <label class="brush-label">Brush:</label>
+                <input type="range" id="brushSize" min="10" max="40" value="18"
+                       class="form-range flex-grow-1" style="max-width:120px">
+                <span id="brushVal" class="mono">18</span>
+
+                <div class="ms-auto d-flex gap-2">
+                  <button class="btn-icon" id="undoBtn" title="Undo">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                  </button>
+                  <button class="btn-icon btn-icon-danger" id="clearBtn" title="Clear">
+                    <i class="bi bi-trash3"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="d-flex gap-2 mt-3">
+                <button class="btn btn-primary-glow flex-grow-1" id="predictDrawBtn">
+                  <i class="bi bi-lightning-fill me-2"></i>Predict
+                </button>
+                <div class="form-check form-switch align-self-center ms-2">
+                  <input class="form-check-input" type="checkbox" id="realtimeToggle" checked>
+                  <label class="form-check-label small" for="realtimeToggle">Live</label>
+                </div>
+              </div>
+
+              <!-- Real-time mini preview -->
+              <div class="realtime-bar mt-2" id="realtimeBar">
+                <span class="rt-label">Live:</span>
+                <span class="rt-digit" id="rtDigit">—</span>
+                <div class="rt-bars" id="rtBars"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Results panel -->
+          <div class="col-lg-6" id="drawResults">
+            <div class="glass-card result-placeholder" id="placeholderCard">
+              <div class="placeholder-inner">
+                <div class="placeholder-icon"><i class="bi bi-pencil-fill"></i></div>
+                <p>Draw a digit on the canvas and hit <strong>Predict</strong></p>
+              </div>
+            </div>
+            <!-- filled dynamically by JS -->
+            <div id="resultPanel" class="d-none"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Upload Tab ──────────────────────────────────── -->
+      <div class="tab-pane fade" id="uploadTab" role="tabpanel">
+        <div class="row g-4 justify-content-center">
+
+          <div class="col-lg-5">
+            <div class="glass-card">
+              <h5 class="card-label">
+                <i class="bi bi-image me-2 accent"></i>Upload Image
+              </h5>
+              <label class="dropzone" id="dropzone">
+                <input type="file" id="fileInput" accept=".png,.jpg,.jpeg" hidden>
+                <div class="dz-idle" id="dzIdle">
+                  <i class="bi bi-cloud-arrow-up-fill dz-icon"></i>
+                  <p class="dz-text mt-3">Drop image here or <span class="accent">click to browse</span></p>
+                  <p class="dz-hint">PNG · JPG · JPEG (max 5 MB)</p>
+                </div>
+                <div class="dz-preview d-none" id="dzPreview">
+                  <img id="previewImg" src="" alt="Preview" class="dz-img">
+                  <p class="dz-filename mt-2" id="dzFilename"></p>
+                </div>
+              </label>
+              <button class="btn btn-primary-glow w-100 mt-3" id="predictUploadBtn" disabled>
+                <i class="bi bi-lightning-fill me-2"></i>Predict
+              </button>
+            </div>
+          </div>
+
+          <div class="col-lg-6" id="uploadResults">
+            <div class="glass-card result-placeholder" id="uploadPlaceholderCard">
+              <div class="placeholder-inner">
+                <div class="placeholder-icon"><i class="bi bi-cloud-upload-fill"></i></div>
+                <p>Upload an image to get a prediction.</p>
+              </div>
+            </div>
+            <div id="uploadResultPanel" class="d-none"></div>
+          </div>
+
+        </div>
+      </div>
+    </div><!-- /tab-content -->
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     PREDICTION HISTORY
+══════════════════════════════════════════════════════════════ -->
+<section id="history" class="section-pad section-alt">
+  <div class="container">
+    <div class="section-header text-center mb-4">
+      <span class="section-tag">Activity</span>
+      <h2 class="section-title">Prediction History</h2>
+      <p class="section-sub">All predictions are saved in an SQLite database.</p>
+    </div>
+
+    <div class="glass-card overflow-hidden">
+      <div class="d-flex align-items-center justify-content-between p-3 border-bottom border-white border-opacity-10">
+        <span class="mono small opacity-75">Last 20 predictions</span>
+        <button class="btn-icon" id="refreshHistory" title="Refresh">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-dark-custom mb-0">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Time</th>
+              <th>Source</th>
+              <th>Digit</th>
+              <th>Confidence</th>
+              <th>Top-3</th>
+              <th>Report</th>
+            </tr>
+          </thead>
+          <tbody id="historyTbody">
+            <tr><td colspan="7" class="text-center opacity-50 py-4">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     PERFORMANCE DASHBOARD
+══════════════════════════════════════════════════════════════ -->
+<section id="performance" class="section-pad">
+  <div class="container">
+    <div class="section-header text-center mb-5">
+      <span class="section-tag">Analytics</span>
+      <h2 class="section-title">Performance Dashboard</h2>
+      <p class="section-sub">Training metrics, confusion matrix, and sample predictions.</p>
+    </div>
+
+    <div class="row g-4">
+      <!-- Accuracy Chart -->
+      <div class="col-lg-6">
+        <div class="glass-card">
+          <h6 class="card-label"><i class="bi bi-graph-up me-2 accent"></i>Accuracy over Epochs</h6>
+          <canvas id="accChart" height="220"></canvas>
+        </div>
+      </div>
+
+      <!-- Loss Chart -->
+      <div class="col-lg-6">
+        <div class="glass-card">
+          <h6 class="card-label"><i class="bi bi-graph-down me-2 accent"></i>Loss over Epochs</h6>
+          <canvas id="lossChart" height="220"></canvas>
+        </div>
+      </div>
+
+      <!-- Confusion Matrix -->
+      <div class="col-lg-6">
+        <div class="glass-card text-center">
+          <h6 class="card-label"><i class="bi bi-grid-3x3-gap me-2 accent"></i>Confusion Matrix</h6>
+          <img src="{{ url_for('static', filename='images/confusion_matrix.png') }}"
+               alt="Confusion Matrix" class="img-fluid rounded dash-img"
+               onerror="this.style.display='none';document.getElementById('cmFallback').style.display='block'">
+          <p id="cmFallback" style="display:none" class="opacity-50 mt-3">
+            Train the model first to generate this chart.
+          </p>
+        </div>
+      </div>
+
+      <!-- Sample Predictions -->
+      <div class="col-lg-6">
+        <div class="glass-card text-center">
+          <h6 class="card-label"><i class="bi bi-collection me-2 accent"></i>Sample Predictions</h6>
+          <img src="{{ url_for('static', filename='images/sample_predictions.png') }}"
+               alt="Sample Predictions" class="img-fluid rounded dash-img"
+               onerror="this.style.display='none';document.getElementById('spFallback').style.display='block'">
+          <p id="spFallback" style="display:none" class="opacity-50 mt-3">
+            Train the model first to generate this chart.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODEL INFORMATION
+══════════════════════════════════════════════════════════════ -->
+<section id="model-info" class="section-pad section-alt">
+  <div class="container">
+    <div class="section-header text-center mb-5">
+      <span class="section-tag">Architecture</span>
+      <h2 class="section-title">Model Information</h2>
+      <p class="section-sub">CNN trained end-to-end on the MNIST benchmark.</p>
+    </div>
+
+    <div class="row g-4 align-items-stretch">
+
+      <!-- Stats cards -->
+      <div class="col-lg-5">
+        <div class="row g-3">
+          {% set info_cards = [
+            ('bi-database-fill', 'Dataset', 'MNIST', '70,000 digit images'),
+            ('bi-diagram-3-fill', 'Architecture', 'CNN', '3 Conv blocks + FC'),
+            ('bi-percent', 'Train Accuracy', stats.get('train_accuracy', '99.42')|string ~ '%', 'After ' ~ stats.get('epochs_run', '15')|string ~ ' epochs'),
+            ('bi-bullseye', 'Test Accuracy', stats.get('test_accuracy',  '99.31')|string ~ '%', 'On 10,000 held-out images'),
+          ] %}
+          {% for icon, label, value, sub in info_cards %}
+          <div class="col-6">
+            <div class="glass-card stat-card h-100">
+              <i class="bi {{ icon }} stat-icon accent"></i>
+              <div class="stat-value gradient-text">{{ value }}</div>
+              <div class="stat-name">{{ label }}</div>
+              <div class="stat-sub">{{ sub }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Architecture diagram -->
+      <div class="col-lg-7">
+        <div class="glass-card h-100">
+          <h6 class="card-label mb-4"><i class="bi bi-cpu me-2 accent"></i>CNN Architecture</h6>
+          <div class="arch-diagram" id="archDiagram">
+            {% set layers = [
+              ('INPUT', '28×28×1', '#4361ee'),
+              ('CONV 3×3 ×32', 'ReLU + BN', '#4895ef'),
+              ('CONV 3×3 ×32', 'ReLU + BN', '#4895ef'),
+              ('MAXPOOL + DO', '2×2 / 0.25', '#7209b7'),
+              ('CONV 3×3 ×64', 'ReLU + BN', '#4895ef'),
+              ('CONV 3×3 ×64', 'ReLU + BN', '#4895ef'),
+              ('MAXPOOL + DO', '2×2 / 0.25', '#7209b7'),
+              ('CONV 3×3 ×128', 'ReLU + BN', '#4895ef'),
+              ('MAXPOOL + DO', '2×2 / 0.25', '#7209b7'),
+              ('FLATTEN', '→ 512', '#560bad'),
+              ('DENSE 256', 'ReLU + BN + DO', '#f72585'),
+              ('DENSE 128', 'ReLU + DO', '#f72585'),
+              ('OUTPUT', 'Softmax ×10', '#06d6a0'),
+            ] %}
+            {% for name, detail, color in layers %}
+            <div class="arch-layer" style="--layer-color:{{ color }}">
+              <div class="arch-name">{{ name }}</div>
+              <div class="arch-detail">{{ detail }}</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Tech stack -->
+      <div class="col-12">
+        <div class="glass-card">
+          <h6 class="card-label mb-4"><i class="bi bi-stack me-2 accent"></i>Technologies Used</h6>
+          <div class="tech-grid">
+            {% for tech, icon_cls in [
+              ('Python 3.10+', 'bi-filetype-py'),
+              ('TensorFlow / Keras', 'bi-cpu'),
+              ('Flask', 'bi-flask'),
+              ('NumPy', 'bi-calculator'),
+              ('OpenCV', 'bi-camera'),
+              ('Matplotlib', 'bi-bar-chart'),
+              ('SQLite', 'bi-database'),
+              ('Bootstrap 5', 'bi-bootstrap'),
+              ('Chart.js', 'bi-pie-chart'),
+              ('ReportLab (PDF)', 'bi-file-pdf'),
+              ('Grad-CAM', 'bi-eye'),
+              ('scikit-learn', 'bi-gear'),
+            ] %}
+            <div class="tech-pill">
+              <i class="bi {{ icon_cls }} me-2"></i>{{ tech }}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     CONTACT
+══════════════════════════════════════════════════════════════ -->
+<section id="contact" class="section-pad">
+  <div class="container">
+    <div class="section-header text-center mb-5">
+      <span class="section-tag">Connect</span>
+      <h2 class="section-title">Contact</h2>
+    </div>
+
+    <div class="row g-4 justify-content-center">
+      <div class="col-lg-8">
+        <div class="glass-card">
+          <div class="row g-4 text-center">
+            <div class="col-md-3">
+              <div class="contact-item">
+                <div class="contact-icon"><i class="bi bi-person-fill"></i></div>
+                <div class="contact-label">Name</div>
+                <div class="contact-value">Haigreven P</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="contact-item">
+                <div class="contact-icon"><i class="bi bi-envelope-fill"></i></div>
+                <div class="contact-label">Email</div>
+                <div class="contact-value">haigrevenp@karunya.edu.in</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <a href="https://linkedin.com" target="_blank" class="contact-item text-decoration-none">
+                <div class="contact-icon linkedin-icon"><i class="bi bi-linkedin"></i></div>
+                <div class="contact-label">LinkedIn</div>
+                <div class="contact-value">www.linkedin.com/in/haigreven-p-a9288b380</div>
+              </a>
+            </div>
+            <div class="col-md-3">
+              <a href="https://github.com" target="_blank" class="contact-item text-decoration-none">
+                <div class="contact-icon github-icon"><i class="bi bi-github"></i></div>
+                <div class="contact-label">GitHub</div>
+                <div class="contact-value">https://github.com/haigrevenp-sketch</div>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     FOOTER
+══════════════════════════════════════════════════════════════ -->
+<footer class="site-footer">
+  <div class="container">
+    <div class="row align-items-center py-4">
+      <div class="col-md-4 mb-3 mb-md-0">
+        <div class="d-flex align-items-center gap-2">
+          <div class="brand-icon small-icon"><i class="bi bi-cpu-fill"></i></div>
+          <span class="brand-text">Digit<span class="accent">AI</span></span>
+        </div>
+        <p class="footer-sub mt-2">CNN-powered handwritten digit recognition.</p>
+      </div>
+      <div class="col-md-4 text-center mb-3 mb-md-0">
+        <p class="footer-sub mb-0">Built with TensorFlow · Flask · MNIST · ❤️</p>
+      </div>
+      <div class="col-md-4 text-md-end">
+        <div class="d-flex gap-3 justify-content-md-end">
+          <a href="/about" class="footer-link">About</a>
+          <a href="#predictor" class="footer-link">Predict</a>
+          <a href="#history" class="footer-link">History</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+
+<!-- ─── Spinner overlay ──────────────────────────────────────────────────── -->
+<div class="spinner-overlay d-none" id="spinnerOverlay">
+  <div class="spinner-box">
+    <div class="custom-spinner">
+      <div class="s-ring"></div>
+      <div class="s-dot"></div>
+    </div>
+    <p class="spinner-text mt-3">Analysing…</p>
+  </div>
+</div>
+
+
+<!-- ─── Toast ──────────────────────────────────────────────────────────────── -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+  <div id="toastEl" class="toast align-items-center border-0 glass-toast" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="toastBody">Message</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Custom JS -->
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+<!-- Inline bootstrap data for charts -->
+<script>
+  window.MODEL_STATS = {{ stats | tojson }};
+</script>
+
+</body>
+</html>

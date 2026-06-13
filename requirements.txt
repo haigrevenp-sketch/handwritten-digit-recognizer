@@ -1,0 +1,34 @@
+# =========================================================
+#  Handwritten Digit Recognizer — Python Dependencies
+#  Install: pip install -r requirements.txt
+# =========================================================
+
+# Web framework
+Flask==3.0.0
+Werkzeug==3.0.1
+
+# Deep Learning
+tensorflow==2.15.0          # or tensorflow-cpu==2.15.0 for CPU-only
+
+# Image processing
+Pillow==10.2.0
+opencv-python-headless==4.9.0.80   # headless: no GUI required
+
+# Data science
+numpy==1.26.3
+scikit-learn==1.4.0
+
+# Plotting
+matplotlib==3.8.2
+seaborn==0.13.2
+
+# PDF generation
+reportlab==4.1.0
+
+# Production server (optional)
+gunicorn==21.2.0
+
+# Utilities (already in stdlib but pinned for reproducibility)
+# sqlite3  — stdlib
+# json     — stdlib
+# base64   — stdlib
